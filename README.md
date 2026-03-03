@@ -1,5 +1,7 @@
 # ⚡️⚡️ Octopus Energy Dashboard for people signed up to the Agile Octopus tarrif in the UK
 
+[Screengrab Of This Projects Dashboard Webpage](OctopusEnergyDashboard.png)
+
 What?: A personal energy monitoring dashboard built in Python and Flask, running locally on my Mac in a web browser.
 It connects to the [Octopus Energy REST API](https://developer.octopus.energy/rest/) to pull my half-hourly smart meter data and display it as interactive graphs in a web browser.
 Why?:  I created this because I sweitched to Octopus' Agile tarrif and I wanted to see what typical peak energy prices were throughout the day and see if my usage was at the expensive times. The difference between cheap and expensive rates is more than 3 times eg I've seen 35p/kWh and 11p/kWh during the daytime. When people get home from school/work is always the expensive period: around 4PM to 7PM - around a 3x jump.
