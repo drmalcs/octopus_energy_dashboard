@@ -1,0 +1,6 @@
+cat > requirements.txt
+```
+```
+flask
+requests
+python-dotenv

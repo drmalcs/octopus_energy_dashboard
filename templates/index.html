@@ -1,0 +1,918 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Octopus Energy Dashboard</title>
+
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/plotly.js/2.27.0/plotly.min.js"></script>
+
+  <style>
+    :root {
+      --bg:           #0d0f14;
+      --surface:      #161922;
+      --border:       #272c3a;
+      --text:         #e8eaf0;
+      --muted:        #6b7280;
+      --elec:         #00d4ff;
+      --gas:          #ff6b35;
+      --cost:         #a78bfa;
+      --rate:         #fbbf24;
+      --elec-dim:     rgba(0, 212, 255, 0.12);
+      --gas-dim:      rgba(255, 107, 53, 0.12);
+      --radius:       12px;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      font-weight: 300;
+      min-height: 100vh;
+      padding: 2rem;
+    }
+
+    header {
+      display: flex;
+      align-items: baseline;
+      gap: 1rem;
+      margin-bottom: 2.5rem;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 1.5rem;
+    }
+
+    header h1 {
+      font-family: 'Space Mono', monospace;
+      font-size: 1.5rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+
+    header .logo { font-size: 2rem; filter: drop-shadow(0 0 8px var(--elec)); }
+
+    header .subtitle {
+      font-size: 0.85rem;
+      color: var(--muted);
+      margin-left: auto;
+      font-family: 'Space Mono', monospace;
+    }
+
+    .controls {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.5rem;
+      margin-bottom: 2rem;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .controls label {
+      font-size: 0.8rem;
+      color: var(--muted);
+      font-family: 'Space Mono', monospace;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .controls input[type="datetime-local"] {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      font-family: 'Space Mono', monospace;
+      font-size: 0.85rem;
+      padding: 0.5rem 0.75rem;
+      color-scheme: dark;
+    }
+
+    .controls input[type="datetime-local"]:focus {
+      outline: none;
+      border-color: var(--elec);
+    }
+
+    .btn-load {
+      background: var(--elec);
+      color: var(--bg);
+      border: none;
+      border-radius: 6px;
+      font-family: 'Space Mono', monospace;
+      font-size: 0.85rem;
+      font-weight: 700;
+      padding: 0.5rem 1.25rem;
+      cursor: pointer;
+      transition: opacity 0.15s ease;
+      margin-left: auto;
+    }
+
+    .btn-load:hover  { opacity: 0.85; }
+    .btn-load:active { opacity: 0.7;  }
+    .btn-load:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    .presets { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+
+    .btn-preset {
+      background: transparent;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--muted);
+      font-family: 'Space Mono', monospace;
+      font-size: 0.75rem;
+      padding: 0.35rem 0.75rem;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .btn-preset:hover { border-color: var(--elec); color: var(--elec); }
+
+    .stats-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+
+    .stat-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem;
+    }
+
+    .stat-card.elec      { border-top: 2px solid var(--elec); background: var(--elec-dim); }
+    .stat-card.gas       { border-top: 2px solid var(--gas);  background: var(--gas-dim);  }
+    .stat-card.cost-elec { border-top: 2px solid var(--cost); background: rgba(167,139,250,0.08); }
+    .stat-card.cost-gas  { border-top: 2px solid var(--gas);  background: var(--gas-dim); }
+
+    .stat-label {
+      font-size: 0.75rem;
+      color: var(--muted);
+      font-family: 'Space Mono', monospace;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 0.5rem;
+    }
+
+    .stat-value {
+      font-family: 'Space Mono', monospace;
+      font-size: 1.6rem;
+      font-weight: 700;
+      line-height: 1;
+    }
+
+    .stat-card.elec      .stat-value { color: var(--elec); }
+    .stat-card.gas       .stat-value { color: var(--gas);  }
+    .stat-card.cost-elec .stat-value { color: var(--cost); }
+    .stat-card.cost-gas  .stat-value { color: var(--gas);  }
+
+    .stat-unit { font-size: 0.8rem; color: var(--muted); margin-top: 0.25rem; }
+
+    .chart-panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .chart-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 1rem;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+    }
+
+    .chart-header h2 {
+      font-family: 'Space Mono', monospace;
+      font-size: 0.9rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .chart-panel.elec h2 { color: var(--elec); }
+    .chart-panel.gas  h2 { color: var(--gas);  }
+
+    .toggle-group {
+      display: flex;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      overflow: hidden;
+    }
+
+    .btn-toggle {
+      background: transparent;
+      border: none;
+      color: var(--muted);
+      font-family: 'Space Mono', monospace;
+      font-size: 0.75rem;
+      padding: 0.4rem 0.9rem;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .chart-panel.elec .btn-toggle.active { background: var(--elec); color: var(--bg); font-weight: 700; }
+    .chart-panel.gas  .btn-toggle.active { background: var(--gas);  color: var(--bg); font-weight: 700; }
+
+    .chart-container { width: 100%; height: 420px; }
+
+    .status-bar {
+      font-family: 'Space Mono', monospace;
+      font-size: 0.78rem;
+      color: var(--muted);
+      text-align: center;
+      padding: 0.5rem;
+      min-height: 2rem;
+    }
+
+    .status-bar.error   { color: #ff4d4d; }
+    .status-bar.loading { color: var(--elec); }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .spinner {
+      display: inline-block;
+      width: 12px; height: 12px;
+      border: 2px solid var(--border);
+      border-top-color: var(--elec);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      margin-right: 0.5rem;
+      vertical-align: middle;
+    }
+  </style>
+</head>
+
+<body>
+
+  <header>
+    <span class="logo">🐙</span>
+    <h1>Octopus Energy Dashboard</h1>
+    <span class="subtitle" id="last-updated">—</span>
+  </header>
+
+  <div class="controls">
+    <label for="date-from">From</label>
+    <input type="datetime-local" id="date-from">
+    <label for="date-to">To</label>
+    <input type="datetime-local" id="date-to">
+    <div class="presets">
+      <button class="btn-preset" onclick="setPreset(2)">2 days</button>
+      <button class="btn-preset" onclick="setPreset(7)">7 days</button>
+      <button class="btn-preset" onclick="setPreset(30)">30 days</button>
+      <button class="btn-preset" onclick="setPreset(90)">90 days</button>
+    </div>
+    <button class="btn-load" id="btn-load" onclick="loadData()">Load Data</button>
+  </div>
+
+  <div class="status-bar" id="status"></div>
+
+  <div class="stats-row" id="stats-consumption">
+    <div class="stat-card elec">
+      <div class="stat-label">Total Electricity</div>
+      <div class="stat-value" id="elec-total">—</div>
+      <div class="stat-unit">kWh</div>
+    </div>
+    <div class="stat-card elec">
+      <div class="stat-label">Peak Half-Hour</div>
+      <div class="stat-value" id="elec-peak">—</div>
+      <div class="stat-unit">kWh</div>
+    </div>
+    <div class="stat-card gas">
+      <div class="stat-label">Total Gas</div>
+      <div class="stat-value" id="gas-total">—</div>
+      <div class="stat-unit">m³</div>
+    </div>
+    <div class="stat-card gas">
+      <div class="stat-label">Peak Half-Hour Gas</div>
+      <div class="stat-value" id="gas-peak">—</div>
+      <div class="stat-unit">m³</div>
+    </div>
+  </div>
+
+  <div class="stats-row" id="stats-cost" style="display:none">
+    <div class="stat-card cost-elec">
+      <div class="stat-label">Total Electricity Cost</div>
+      <div class="stat-value" id="elec-cost-total">—</div>
+      <div class="stat-unit">pence</div>
+    </div>
+    <div class="stat-card cost-elec">
+      <div class="stat-label">Avg Unit Rate</div>
+      <div class="stat-value" id="elec-avg-rate">—</div>
+      <div class="stat-unit">p/kWh</div>
+    </div>
+    <div class="stat-card cost-gas">
+      <div class="stat-label">Total Gas Cost (est.)</div>
+      <div class="stat-value" id="gas-cost-total">—</div>
+      <div class="stat-unit">pence</div>
+    </div>
+    <div class="stat-card cost-gas">
+      <div class="stat-label">Gas Unit Rate</div>
+      <div class="stat-value" id="gas-avg-rate">—</div>
+      <div class="stat-unit">p/kWh</div>
+    </div>
+  </div>
+
+  <div class="chart-panel elec" id="panel-elec">
+    <div class="chart-header">
+      <h2>&#9889; Electricity</h2>
+      <div class="toggle-group">
+        <button class="btn-toggle" id="elec-btn-consumption"
+                onclick="switchView('elec', 'consumption')">Consumption</button>
+        <button class="btn-toggle active" id="elec-btn-cost"
+                onclick="switchView('elec', 'cost')">Cost</button>
+      </div>
+    </div>
+    <div class="chart-container" id="elec-chart"></div>
+  </div>
+
+  <div class="chart-panel gas" id="panel-gas">
+    <div class="chart-header">
+      <h2>&#128293; Gas</h2>
+      <div class="toggle-group">
+        <button class="btn-toggle active" id="gas-btn-consumption"
+                onclick="switchView('gas', 'consumption')">Consumption</button>
+        <button class="btn-toggle" id="gas-btn-cost"
+                onclick="switchView('gas', 'cost')">Cost</button>
+      </div>
+    </div>
+    <div class="chart-container" id="gas-chart"></div>
+  </div>
+
+  <script>
+
+    // ------------------------------------------------------------------ //
+    // MODULE-LEVEL STATE                                                   //
+    // ------------------------------------------------------------------ //
+    let elecData  = [];
+    let gasData   = [];
+    let ratesData = [];
+
+    // Electricity defaults to cost view, gas to consumption view
+    let elecView = 'cost';
+    let gasView  = 'consumption';
+
+    // ------------------------------------------------------------------ //
+    // GAS COST CONSTANTS                                                   //
+    // Gas is billed at a flat rate per kWh. The meter reads m3 so we     //
+    // convert using the standard UK calorific value formula.              //
+    // Update GAS_UNIT_RATE_PENCE_PER_KWH to match your current bill.     //
+    // ------------------------------------------------------------------ //
+    const GAS_UNIT_RATE_PENCE_PER_KWH = 6.24;
+    const GAS_CALORIFIC_VALUE         = 39.5;
+    const GAS_M3_TO_KWH_FACTOR        = GAS_CALORIFIC_VALUE * 1.02264 / 3.6;
+
+    function gasM3ToKwh(m3)   { return m3 * GAS_M3_TO_KWH_FACTOR; }
+    function gasM3ToPence(m3) { return gasM3ToKwh(m3) * GAS_UNIT_RATE_PENCE_PER_KWH; }
+
+    // ------------------------------------------------------------------ //
+    // DAILY AVERAGE COMPUTATION                                            //
+    //                                                                      //
+    // Groups all half-hour cost values by calendar date, computes the     //
+    // average cost per slot for each day, and records the full day total. //
+    // ------------------------------------------------------------------ //
+    function computeDailyAverageCosts(elec, ratesMap) {
+      const dailyTotals = {};
+
+      for (const d of elec) {
+        const rate = matchRateToConsumption(d, ratesMap);
+        if (rate === null) continue;
+        const cost    = d.consumption * rate;
+        const dateKey = d.interval_start.slice(0, 10);
+        if (!dailyTotals[dateKey]) {
+          dailyTotals[dateKey] = { total: 0, count: 0 };
+        }
+        dailyTotals[dateKey].total += cost;
+        dailyTotals[dateKey].count += 1;
+      }
+
+      // For each slot, look up its day's average cost
+      const dailyAvgValues = elec.map(d => {
+        const dateKey = d.interval_start.slice(0, 10);
+        const day     = dailyTotals[dateKey];
+        if (!day || day.count === 0) return 0;
+        return day.total / day.count;
+      });
+
+      // Build date to total cost lookup for hover tooltips
+      const dailyTotalCosts = {};
+      for (const [dateKey, val] of Object.entries(dailyTotals)) {
+        dailyTotalCosts[dateKey] = val.total;
+      }
+
+      return { dailyAvgValues, dailyTotalCosts };
+    }
+
+    // ------------------------------------------------------------------ //
+    // BUILD DAY BOUNDARY SHAPES                                            //
+    //                                                                      //
+    // Returns Plotly shape objects — one rectangle per calendar day.      //
+    // Alternating light/dark grey stripes make day boundaries obvious.    //
+    // Shapes are flat SVG rectangles with no vignette or gradient.        //
+    // ------------------------------------------------------------------ //
+    function buildDayShapes(elec) {
+      const uniqueDates = [
+        ...new Set(elec.map(d => d.interval_start.slice(0, 10)))
+      ].sort();
+
+      const bandColours = [
+        'rgba(200, 200, 220, 0.06)',
+        'rgba(200, 200, 220, 0.13)'
+      ];
+
+      return uniqueDates.map((dateStr, index) => {
+        const x0 = dateStr + 'T00:00:00Z';
+        const x1 = new Date(
+          new Date(x0).getTime() + 24 * 60 * 60 * 1000
+        ).toISOString();
+
+        return {
+          type:      'rect',
+          xref:      'x',
+          yref:      'paper',
+          x0:        x0,
+          x1:        x1,
+          y0:        0,
+          y1:        1,
+          fillcolor: bandColours[index % 2],
+          line:      { width: 0 },
+          layer:     'below'
+        };
+      });
+    }
+
+    // ------------------------------------------------------------------ //
+    // UTILITIES                                                            //
+    // ------------------------------------------------------------------ //
+    function toInputFormat(date) { return date.toISOString().slice(0, 16); }
+    function toApiFormat(date)   { return date.toISOString(); }
+
+    function setPreset(days) {
+      const now  = new Date();
+      const from = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
+      document.getElementById('date-from').value = toInputFormat(from);
+      document.getElementById('date-to').value   = toInputFormat(now);
+    }
+
+    setPreset(7);
+
+    // ------------------------------------------------------------------ //
+    // STATUS BAR                                                           //
+    // ------------------------------------------------------------------ //
+    function setStatus(message, type) {
+      type = type || '';
+      const bar     = document.getElementById('status');
+      bar.className = 'status-bar ' + type;
+      bar.innerHTML = message;
+    }
+
+    function setLoading(message) {
+      setStatus('<span class="spinner"></span>' + message, 'loading');
+    }
+
+    // ------------------------------------------------------------------ //
+    // RATES LOOKUP                                                         //
+    // ------------------------------------------------------------------ //
+    function buildRatesMap(rates) {
+      const map = new Map();
+      for (const r of rates) { map.set(r.valid_from, r.value_inc_vat); }
+      return map;
+    }
+
+    function matchRateToConsumption(consumptionRecord, ratesMap) {
+      const val = ratesMap.get(consumptionRecord.interval_start);
+      return (val !== undefined) ? val : null;
+    }
+
+    // ------------------------------------------------------------------ //
+    // STAT CARD UPDATES                                                    //
+    // ------------------------------------------------------------------ //
+    function updateConsumptionStats(elec, gas) {
+      const elecTotal = elec.reduce(function(sum, d) { return sum + d.consumption; }, 0);
+      const elecPeak  = Math.max.apply(null, elec.map(function(d) { return d.consumption; }));
+      const gasTotal  = gas.reduce(function(sum, d) { return sum + d.consumption; }, 0);
+      const gasPeak   = Math.max.apply(null, gas.map(function(d) { return d.consumption; }));
+      document.getElementById('elec-total').textContent = elecTotal.toFixed(2);
+      document.getElementById('elec-peak').textContent  = elecPeak.toFixed(3);
+      document.getElementById('gas-total').textContent  = gasTotal.toFixed(2);
+      document.getElementById('gas-peak').textContent   = gasPeak.toFixed(3);
+    }
+
+    function updateCostStats(elec, gas, ratesMap) {
+      var elecCostTotal = 0, rateSum = 0, rateCount = 0;
+      for (var i = 0; i < elec.length; i++) {
+        var rate = matchRateToConsumption(elec[i], ratesMap);
+        if (rate !== null) {
+          elecCostTotal += elec[i].consumption * rate;
+          rateSum       += rate;
+          rateCount++;
+        }
+      }
+      var avgRate      = rateCount > 0 ? rateSum / rateCount : 0;
+      var gasCostTotal = gas.reduce(function(sum, d) { return sum + gasM3ToPence(d.consumption); }, 0);
+      document.getElementById('elec-cost-total').textContent = elecCostTotal.toFixed(1);
+      document.getElementById('elec-avg-rate').textContent   = avgRate.toFixed(2);
+      document.getElementById('gas-cost-total').textContent  = gasCostTotal.toFixed(1);
+      document.getElementById('gas-avg-rate').textContent    = GAS_UNIT_RATE_PENCE_PER_KWH.toFixed(2);
+    }
+
+    // ------------------------------------------------------------------ //
+    // CHART LAYOUT                                                         //
+    // shapes: optional array of Plotly shape objects for day bands.       //
+    // ------------------------------------------------------------------ //
+    function chartLayout(yAxisLabel, shapes) {
+      return {
+        margin:        { t: 10, r: 60, b: 60, l: 60 },
+        paper_bgcolor: 'transparent',
+        plot_bgcolor:  'transparent',
+        font: {
+          family: 'Space Mono, monospace',
+          color:  '#6b7280',
+          size:   11
+        },
+        xaxis: {
+          type:        'date',
+          gridcolor:   '#272c3a',
+          linecolor:   '#272c3a',
+          tickformat:  '%d %b\n%H:%M',
+          tickfont:    { size: 10 },
+          rangeslider: { visible: true, thickness: 0.08, bgcolor: '#161922' }
+        },
+        yaxis: {
+          title:     { text: yAxisLabel, font: { size: 11 } },
+          gridcolor: '#272c3a',
+          linecolor: '#272c3a',
+          rangemode: 'tozero'
+        },
+        // yaxis2: right-hand axis for the unit rate line.
+        // Rate values (e.g. 15 p/kWh) are on a different scale from
+        // per-slot cost values (e.g. 0.5p) so they need a separate axis.
+        yaxis2: {
+          title:      { text: 'p/kWh', font: { size: 11 } },
+          gridcolor:  'transparent',
+          linecolor:  '#272c3a',
+          overlaying: 'y',
+          side:       'right',
+          rangemode:  'tozero'
+        },
+        showlegend: true,
+        legend: {
+          bgcolor:     'transparent',
+          bordercolor: '#272c3a',
+          font:        { size: 15 }
+        },
+        // x unified: groups all traces into one tooltip box at cursor x
+        hovermode: 'x unified',
+        hoverlabel: {
+          bgcolor:     '#1e2330',
+          bordercolor: '#272c3a',
+          namelength:  0,
+          align:       'left',
+          font: {
+            family: 'Space Mono, monospace',
+            size:   18,
+            color:  '#e8eaf0'
+          }
+        },
+        // overlay: bar traces draw on top of each other so teal daily-avg
+        // bars sit behind the narrower purple half-hourly cost bars
+        barmode: 'overlay',
+        shapes:  shapes || []
+      };
+    }
+
+    var plotlyConfig = {
+      displayModeBar: true,
+      modeBarButtonsToRemove: [
+        'select2d', 'lasso2d', 'toggleSpikelines', 'autoScale2d'
+      ],
+      displaylogo: false,
+      responsive:  true
+    };
+
+    // ------------------------------------------------------------------ //
+    // DRAW ELECTRICITY CHART                                               //
+    // mode: 'consumption' or 'cost'                                       //
+    // ------------------------------------------------------------------ //
+    function drawElecChart(mode) {
+      var ratesMap = buildRatesMap(ratesData);
+
+      if (mode === 'consumption') {
+        var trace = {
+          name: 'Consumption (kWh)',
+          x:    elecData.map(function(d) { return d.interval_start; }),
+          y:    elecData.map(function(d) { return d.consumption; }),
+          type: 'bar',
+          marker: {
+            color: 'rgba(0, 212, 255, 0.7)',
+            line:  { color: 'rgba(0, 212, 255, 0.9)', width: 0.5 }
+          },
+          hovertemplate: 'Consumption: %{y:.3f} kWh<extra></extra>'
+        };
+        Plotly.newPlot('elec-chart', [trace], chartLayout('kWh'), plotlyConfig);
+
+      } else {
+
+        // Per-slot cost = consumption (kWh) x unit rate (p/kWh)
+        var costValues = elecData.map(function(d) {
+          var rate = matchRateToConsumption(d, ratesMap);
+          return rate !== null ? d.consumption * rate : 0;
+        });
+
+        // Per-slot unit rate for the amber overlay line
+        var rateValues = elecData.map(function(d) {
+          var r = matchRateToConsumption(d, ratesMap);
+          return r !== null ? r : 0;
+        });
+
+        var computed       = computeDailyAverageCosts(elecData, ratesMap);
+        var dailyAvgValues = computed.dailyAvgValues;
+        var dailyTotalCosts = computed.dailyTotalCosts;
+
+        // Alternating grey background shapes — one per calendar day
+        var dayShapes = buildDayShapes(elecData);
+
+        // ---- Teal daily average bars ----
+        //
+        // Plotly centres bars on their x value. To make each bar span
+        // exactly midnight-to-midnight we anchor x at NOON (midnight + 12h).
+        // A 24h-wide bar centred on noon spans exactly 00:00 to 24:00.
+        //
+        // We build one bar per calendar day (not one per slot) so each
+        // day gets a single flat teal block at the correct height.
+        //
+        // hoverinfo:'skip' keeps this trace out of the tooltip entirely.
+        // The purple cost trace (below) owns all tooltip content.
+        var uniqueDates = [];
+        var seenDates   = {};
+        for (var i = 0; i < elecData.length; i++) {
+          var dk = elecData[i].interval_start.slice(0, 10);
+          if (!seenDates[dk]) {
+            seenDates[dk] = true;
+            uniqueDates.push(dk);
+          }
+        }
+        uniqueDates.sort();
+
+        var tealX = [];
+        var tealY = [];
+        for (var j = 0; j < uniqueDates.length; j++) {
+          var dateKey  = uniqueDates[j];
+          var midnight = new Date(dateKey + 'T00:00:00Z');
+          // Noon = midnight + 12 hours in milliseconds
+          var noon     = new Date(midnight.getTime() + 12 * 60 * 60 * 1000);
+          tealX.push(noon.toISOString());
+
+          // Find the avg value for this date from dailyAvgValues
+          // by locating the first slot that belongs to this date
+          var avgVal = 0;
+          for (var k = 0; k < elecData.length; k++) {
+            if (elecData[k].interval_start.slice(0, 10) === dateKey) {
+              avgVal = dailyAvgValues[k];
+              break;
+            }
+          }
+          tealY.push(avgVal);
+        }
+
+        var dailyAvgTrace = {
+          name:      'Daily avg half-hour cost',
+          x:         tealX,
+          y:         tealY,
+          type:      'bar',
+          // 24h in milliseconds. Bar is centred on noon so spans
+          // exactly midnight-to-midnight for each calendar day.
+          width:     tealX.map(function() { return 86400000; }),
+          hoverinfo: 'skip',
+          marker: {
+            color: 'rgba(0, 168, 150, 0.40)',
+            line:  { width: 0 }
+          }
+        };
+
+        // ---- Purple half-hourly cost bars ----
+        //
+        // This trace owns the tooltip. We omit the date from hovertemplate
+        // because Plotly's x unified mode automatically adds the x timestamp
+        // as a header — adding our own date would duplicate it.
+        // customdata carries [dayTotal, dayAvg] so the tooltip can show
+        // daily context alongside the slot cost.
+        var costTrace = {
+          name: 'Half-hour cost',
+          x:    elecData.map(function(d) { return d.interval_start; }),
+          y:    costValues,
+          type: 'bar',
+          marker: {
+            color: 'rgba(167, 139, 250, 0.85)',
+            line:  { color: 'rgba(167, 139, 250, 1.0)', width: 0.5 }
+          },
+          customdata: elecData.map(function(d, i) {
+            var dk       = d.interval_start.slice(0, 10);
+            var dayTotal = dailyTotalCosts[dk] || 0;
+            var dayAvg   = dailyAvgValues[i]   || 0;
+            return [ dayTotal.toFixed(1), dayAvg.toFixed(2) ];
+          }),
+          hovertemplate: (
+            'Slot cost:    %{y:.2f}p<br>' +
+            'Day total:    %{customdata[0]}p<br>' +
+            'Day avg/slot: %{customdata[1]}p' +
+            '<extra></extra>'
+          )
+        };
+
+        // ---- Amber unit rate line ----
+        //
+        // Plotted on yaxis2 (right axis). Shows Agile price variation so
+        // you can see whether expensive usage hit expensive price slots.
+        var rateTrace = {
+          name:  'Unit rate (p/kWh)',
+          x:     elecData.map(function(d) { return d.interval_start; }),
+          y:     rateValues,
+          type:  'scatter',
+          mode:  'lines',
+          yaxis: 'y2',
+          line:  { color: '#fbbf24', width: 1.5 },
+          hovertemplate: 'Rate: %{y:.2f} p/kWh<extra></extra>'
+        };
+
+        // Drawing order back to front:
+        // grey shapes (layout) -> teal avg bars -> purple cost -> amber line
+        Plotly.newPlot(
+          'elec-chart',
+          [dailyAvgTrace, costTrace, rateTrace],
+          chartLayout('Pence', dayShapes),
+          plotlyConfig
+        );
+      }
+    }
+
+    // ------------------------------------------------------------------ //
+    // DRAW GAS CHART                                                       //
+    // ------------------------------------------------------------------ //
+    function drawGasChart(mode) {
+      if (mode === 'consumption') {
+        var trace = {
+          name: 'Consumption (m3)',
+          x:    gasData.map(function(d) { return d.interval_start; }),
+          y:    gasData.map(function(d) { return d.consumption; }),
+          type: 'bar',
+          marker: {
+            color: 'rgba(255, 107, 53, 0.7)',
+            line:  { color: 'rgba(255, 107, 53, 0.9)', width: 0.5 }
+          },
+          hovertemplate: 'Consumption: %{y:.3f} m3<extra></extra>'
+        };
+        Plotly.newPlot('gas-chart', [trace], chartLayout('m3'), plotlyConfig);
+
+      } else {
+        var costValues = gasData.map(function(d) { return gasM3ToPence(d.consumption); });
+        var kwhValues  = gasData.map(function(d) { return gasM3ToKwh(d.consumption); });
+
+        var costTrace = {
+          name: 'Cost (pence)',
+          x:    gasData.map(function(d) { return d.interval_start; }),
+          y:    costValues,
+          type: 'bar',
+          marker: {
+            color: 'rgba(255, 107, 53, 0.7)',
+            line:  { color: 'rgba(255, 107, 53, 0.9)', width: 0.5 }
+          },
+          hovertemplate: 'Cost: %{y:.2f}p<extra></extra>'
+        };
+
+        var kwhTrace = {
+          name:  'kWh equivalent',
+          x:     gasData.map(function(d) { return d.interval_start; }),
+          y:     kwhValues,
+          type:  'scatter',
+          mode:  'lines',
+          yaxis: 'y2',
+          line:  { color: '#fbbf24', width: 1.5 },
+          hovertemplate: '%{y:.3f} kWh<extra></extra>'
+        };
+
+        Plotly.newPlot('gas-chart', [costTrace, kwhTrace],
+          chartLayout('Pence'), plotlyConfig);
+      }
+    }
+
+    // ------------------------------------------------------------------ //
+    // SWITCH VIEW                                                          //
+    // ------------------------------------------------------------------ //
+    function switchView(fuel, mode) {
+      document.getElementById(fuel + '-btn-consumption')
+        .classList.toggle('active', mode === 'consumption');
+      document.getElementById(fuel + '-btn-cost')
+        .classList.toggle('active', mode === 'cost');
+
+      if (fuel === 'elec') elecView = mode;
+      if (fuel === 'gas')  gasView  = mode;
+
+      var anyCostView = (elecView === 'cost' || gasView === 'cost');
+      document.getElementById('stats-consumption').style.display =
+        anyCostView ? 'none' : 'grid';
+      document.getElementById('stats-cost').style.display =
+        anyCostView ? 'grid' : 'none';
+
+      if (fuel === 'elec') drawElecChart(mode);
+      if (fuel === 'gas')  drawGasChart(mode);
+    }
+
+    // ------------------------------------------------------------------ //
+    // LOAD DATA                                                            //
+    // ------------------------------------------------------------------ //
+    async function loadData() {
+      var fromInput = document.getElementById('date-from').value;
+      var toInput   = document.getElementById('date-to').value;
+
+      if (!fromInput || !toInput) {
+        setStatus('Please select both a start and end date.', 'error');
+        return;
+      }
+
+      var fromDate = new Date(fromInput);
+      var toDate   = new Date(toInput);
+
+      if (fromDate >= toDate) {
+        setStatus('Start date must be before end date.', 'error');
+        return;
+      }
+
+      var btn = document.getElementById('btn-load');
+      btn.disabled = true;
+
+      try {
+        var params = (
+          '?period_from=' + encodeURIComponent(toApiFormat(fromDate)) +
+          '&period_to='   + encodeURIComponent(toApiFormat(toDate))
+        );
+
+        setLoading('Fetching electricity, gas and rates data...');
+
+        // Fire all three requests simultaneously
+        var responses = await Promise.all([
+          fetch('/api/electricity-consumption' + params),
+          fetch('/api/gas-consumption'         + params),
+          fetch('/api/electricity-rates'       + params)
+        ]);
+
+        var elecResp  = responses[0];
+        var gasResp   = responses[1];
+        var ratesResp = responses[2];
+
+        if (!elecResp.ok)  throw new Error('Electricity fetch failed: ' + elecResp.status);
+        if (!gasResp.ok)   throw new Error('Gas fetch failed: '         + gasResp.status);
+        if (!ratesResp.ok) throw new Error('Rates fetch failed: '       + ratesResp.status);
+
+        elecData  = await elecResp.json();
+        gasData   = await gasResp.json();
+        ratesData = await ratesResp.json();
+
+        if (elecData.length === 0 && gasData.length === 0) {
+          setStatus('No data returned for this date range.', 'error');
+          btn.disabled = false;
+          return;
+        }
+
+        var ratesMap = buildRatesMap(ratesData);
+        updateConsumptionStats(elecData, gasData);
+        updateCostStats(elecData, gasData, ratesMap);
+        drawElecChart(elecView);
+        drawGasChart(gasView);
+
+        document.getElementById('last-updated').textContent =
+          'Updated ' + new Date().toLocaleTimeString();
+
+        setStatus(
+          'Loaded ' + elecData.length  + ' electricity readings, ' +
+          gasData.length               + ' gas readings, '         +
+          ratesData.length             + ' rate slots.'
+        );
+
+      } catch (error) {
+        setStatus('Error: ' + error.message, 'error');
+        console.error(error);
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    // ------------------------------------------------------------------ //
+    // AUTO-LOAD                                                            //
+    // Fires loadData() once the page HTML is fully parsed, using the     //
+    // last-7-days range already set by setPreset(7) above.               //
+    // ------------------------------------------------------------------ //
+    document.addEventListener('DOMContentLoaded', loadData);
+
+  </script>
+
+</body>
+</html>
