@@ -1,6 +1,6 @@
 # ⚡️⚡️ Octopus Energy Dashboard for people signed up to the Agile Octopus tarrif in the UK
 
-[Screengrab Of This Projects Dashboard Webpage](OctopusEnergyDashboard.png)
+<img src="OctopusEnergyDashboard.png" width="850" height="450" />
 
 What?: A personal energy monitoring dashboard built in Python and Flask, running locally on my Mac in a web browser.
 It connects to the [Octopus Energy REST API](https://developer.octopus.energy/rest/) to pull my half-hourly smart meter data and display it as interactive graphs in a web browser.
