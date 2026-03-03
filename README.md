@@ -2,15 +2,15 @@
 
 What?: A personal energy monitoring dashboard built in Python and Flask, running locally on my Mac in a web browser.
 It connects to the [Octopus Energy REST API](https://developer.octopus.energy/rest/) to pull my half-hourly smart meter data and display it as interactive graphs in a web browser.
-Why?:  I created this because I sweitched to Octopus' Agile tarrif and I wanted to see when typical peak energy prices were throughout the day and see if my usage was at the expensive times. The difference between cheap and expensive rates is more than 3 times eg I've seen 35p/kWh and 11p/kWh during the daytime. When people get home from school/work is always the expensive period: around 4PM to 7PM.
+Why?:  I created this because I sweitched to Octopus' Agile tarrif and I wanted to see what typical peak energy prices were throughout the day and see if my usage was at the expensive times. The difference between cheap and expensive rates is more than 3 times eg I've seen 35p/kWh and 11p/kWh during the daytime. When people get home from school/work is always the expensive period: around 4PM to 7PM - around a 3x jump.
 
 Is it "live"?: yes/no/kind of. It will ask for the latest available data but that's usually only up to the end of yesterday with no data for today. Octopus could change this in future, of course.
 
-How do I use it? Full instructions below but in brief: clone the GitHub repo, run app.py, visit 127.0.0.1:5454. There is also a file you can put on your desktop (or put a symlink there) that, when clicked, will pop up a webpage for you (see below).
+How do I use it? Full instructions below but in brief: clone the GitHub repo, run app.py, visit "127.0.0.1:5454" in a browser. There is also a file you can put on your Mac desktop (or put a symlink there) that, when double clicked, will run the script and pop up a webpage (more below).
 
 Did I hand code this myself? Definitely not. I used Claude to create the Python file and the HTML template file and itterated on that , making suggested edits for tweaks, in Emacs in a Zshell.
 
-So what did I learn?: What flask is; tracking down processes to kill, knowing only the port they're listening to (lsof), that AppleScript can run in a Bash script; that you can run a script in a conda environment in one line of code
+So what did I learn?: What flask is; tracking down processes to kill, knowing only the port they're listening to (lsof), that AppleScript can run in a Bash script; that you can run a script in a conda environment in one line of code; make your text editor's backup files invisible to git so your API key doesn't end up in GitHub (the included .gitignore handles this for Emacs only).
 
 ## What it does
 
