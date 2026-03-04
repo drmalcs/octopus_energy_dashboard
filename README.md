@@ -29,7 +29,11 @@ So what did I learn?: What flask is; tracking down processes to kill, knowing on
 
 ## Why it runs locally
 
-The Octopus API requires an API key for authentication. Running the dashboard as a local Flask application means the key never leaves my machine and never appears in the browser or in any public code. Flask acts as a secure proxy: the browser talks to Flask, Flask talks to the Octopus API with the secret key, and returns the data to the browser.
+The Octopus API requires an API key for authentication. Running the dashboard as a local Flask application means the key never leaves my machine and never appears in the browser or in any public code. Flask acts as a secure proxy: the browser talks to Flask, Flask talks to the Octopus API with the secret key, and returns the data to the browser. The URLs managed by Flask are:
+- **/** -                                                                        The web page itself
+- **/api/electricity-consumptionHalf-hourly** -          electricity kWh data
+- **/api/gas-consumptionHalf-hourly** -                   gas m³ data
+- **/api/meter-infoBasic** -   
 
 ## Tech stack
 
